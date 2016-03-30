@@ -130,6 +130,7 @@ func TestBadExamples(t *testing.T) {
 		"ni:///sha-256-128;f4OxZX_x_FO5LcGBSKHWXfwtSx-j1ncoSt3SABJtkGk": rfc6920.ErrInvalidLength,
 		"ni:///sha-256-128;f4OxZX_x_FO5LcGBSWX":                         rfc6920.ErrInvalidLength,
 		"ni:///sha-256;":                                                rfc6920.ErrInvalidPath,
+		"ni:///sha-256;f":                                               rfc6920.ErrInvalidLength,
 		"ni:///sha-256;f4OxZX_x_FO5LcGBSKHWXfwtSx-j1ncoSt3SABJtkGkfoo":  rfc6920.ErrInvalidLength,
 		"ni:///sha-256;f4OxZX_x_FO5LGBSKHWXfwtSx-j1ncoSt3SABJtkGk":      rfc6920.ErrInvalidLength,
 		"ni:///;":                                                                  rfc6920.ErrInvalidPath,
