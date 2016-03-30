@@ -1,9 +1,11 @@
 package rfc6920_test
 
 import (
+	"crypto/sha1"
 	"strings"
 	"testing"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/nothingmuch/rfc6920"
@@ -42,29 +44,76 @@ More examples from the RFC
 
 */
 
-func TestRFCExamples(t *testing.T) {
+func TestExamples(t *testing.T) {
+	sha1table := rfc6920.AlgorithmTable{
+		Algorithms: rfc6920.AlgorithmParamMap{
+			"sha1": rfc6920.AlgorithmParams{New: sha1.New},
+		},
+	}
+
 	for uri, f := range map[string]struct {
-		authority, text string
+		algorithm, authority, text string
+		algorithmid, length        int
 	}{
-		"ni:///sha-256;f4OxZX_x_FO5LcGBSKHWXfwtSx-j1ncoSt3SABJtkGk":            {"", "Hello World!"},
-		"ni://example.com/sha-256;f4OxZX_x_FO5LcGBSKHWXfwtSx-j1ncoSt3SABJtkGk": {"example.com", "Hello World!"},
-		"ni:///sha-256;UyaQV-Ev4rdLoHyJJWCi11OHfrYv9E1aGQAlMO2X_-Q":            {"", ""},
+		"ni:///sha-256;f4OxZX_x_FO5LcGBSKHWXfwtSx-j1ncoSt3SABJtkGk":            {text: "Hello World!"},
+		"ni://example.com/sha-256;f4OxZX_x_FO5LcGBSKHWXfwtSx-j1ncoSt3SABJtkGk": {authority: "example.com", text: "Hello World!"},
+		"ni:///sha-256;UyaQV-Ev4rdLoHyJJWCi11OHfrYv9E1aGQAlMO2X_-Q":            {},
+
+		"ni:///sha-256-128;f4OxZX_x_FO5LcGBSKHWXf": {
+			algorithmid: 2,
+			algorithm:   "sha-256-128",
+			text:        "Hello World!",
+			length:      16,
+		},
+
+		"ni:///sha1;Lve95gjOVATpfV8EL5X4nxwjKHE": {
+			algorithm: "sha1",
+			text:      "Hello World!",
+			length:    20,
+		},
+
+		// TODO relative URIs
 	} {
 		u, err := rfc6920.Parse(uri)
 
 		assert.NoError(t, err)
 		assert.NotNil(t, u)
 
-		assert.Equal(t, "sha-256", u.Digest.Algorithm)
-		assert.Equal(t, 1, u.Digest.AlgorithmID)
-		assert.Len(t, u.Digest.Value, 32)
+		if f.algorithm == "" {
+			f.algorithm = "sha-256"
+			f.algorithmid = 1
+			f.length = 32
+		} else {
+			// test that the stricter modes reject this test URI
+			_, strictErr := rfc6920.StrictNoTruncation.Parse(uri)
+			assert.EqualError(t, strictErr, rfc6920.ErrUnknownHashAlgorithm.Error())
+
+			if f.algorithmid == 0 {
+				// not truncated algorithms either
+				_, noTruncErr := rfc6920.Strict.Parse(uri)
+				assert.EqualError(t, noTruncErr, rfc6920.ErrUnknownHashAlgorithm.Error())
+			}
+		}
+
+		assert.Equal(t, f.algorithm, u.Digest.Algorithm)
+
+		assert.Equal(t, f.algorithmid, rfc6920.IANA.Algorithms[u.Digest.Algorithm].ID)
+
+		assert.Len(t, u.Digest.Value, f.length)
 
 		if f.authority != "" {
 			assert.Equal(t, f.authority, u.Host)
 		}
 
 		if f.text != "" {
-			assert.NoError(t, u.Verify(strings.NewReader(f.text)))
+			reader := strings.NewReader(f.text)
+			if f.algorithm == "sha1" {
+				assert.NoError(t, sha1table.Verify(u, reader))
+				assert.EqualError(t, u.Verify(reader), rfc6920.ErrUnknownHashAlgorithm.Error())
+			} else {
+				assert.NoError(t, u.Verify(reader))
+			}
+
 		}
 	}
 
@@ -76,25 +125,59 @@ func TestBadExamples(t *testing.T) {
 		"ni://":            rfc6920.ErrInvalidPath,
 		"ni:///":           rfc6920.ErrInvalidPath,
 		"ni:///sha-256":    rfc6920.ErrInvalidPath,
-		"ni:///sha-256;f4OxZX_x_FO5LcGBSKHWXfwtSx-j1ncoSt3SABJtkGk==": rfc6920.ErrInvalidPath,
+		"ni:///sha-256;f4OxZX_x_FO5LcGBSKHWXfwtSx-j1ncoSt3SABJtkGk==": rfc6920.ErrInvalidLength,
 
-		// "ni:///sha-256;":                                                           rfc6920.ErrInvalidPath, // TODO length checking
-		// "ni:///sha-256;f4OxZX_x_FO5LcGBSKHWXfwtSx-j1ncoSt3SABJtkGkfoo":             rfc6920.ErrInvalidPath, // TODO length checking
-		// "ni:///sha-256;f4OxZX_x_FO5LGBSKHWXfwtSx-j1ncoSt3SABJtkGk":                 rfc6920.ErrInvalidPath, // TODO length checking
-		// "ni:///;":                                                                  rfc6920.ErrInvalidPath, // TODO reject alg="", value=""
-		// "ni:///sha-253;":                                                           rfc6920.ErrInvalidPath, // TODO reject alg="sha-253"
-		// "ni:///sha-253;f4OxZX_x_FO5LcGBSKHWXfwtSx-j1ncoSt3SABJtkGk":                rfc6920.ErrInvalidPath, // TODO reject alg="sha-253"
-		// "ni://example.com/foo/sha-256;f4OxZX_x_FO5LcGBSKHWXfwtSx-j1ncoSt3SABJtkGk": rfc6920.ErrInvalidPath, // TODO reject alg="foo/sha-256"
+		"ni:///sha-256-128;f4OxZX_x_FO5LcGBSKHWXfwtSx-j1ncoSt3SABJtkGk": rfc6920.ErrInvalidLength,
+		"ni:///sha-256-128;f4OxZX_x_FO5LcGBSWX":                         rfc6920.ErrInvalidLength,
+		"ni:///sha-256;":                                                rfc6920.ErrInvalidPath,
+		"ni:///sha-256;f4OxZX_x_FO5LcGBSKHWXfwtSx-j1ncoSt3SABJtkGkfoo":  rfc6920.ErrInvalidLength,
+		"ni:///sha-256;f4OxZX_x_FO5LGBSKHWXfwtSx-j1ncoSt3SABJtkGk":      rfc6920.ErrInvalidLength,
+		"ni:///;":                                                                  rfc6920.ErrInvalidPath,
+		"ni:///sha-253;":                                                           rfc6920.ErrInvalidPath,
+		"ni:///sha-253;f4OxZX_x_FO5LcGBSKHWXfwtSx-j1ncoSt3SABJtkGk":                rfc6920.ErrUnknownHashAlgorithm,
+		"ni://example.com/foo/sha-256;f4OxZX_x_FO5LcGBSKHWXfwtSx-j1ncoSt3SABJtkGk": rfc6920.ErrUnknownHashAlgorithm,
 	} {
-		u, err := rfc6920.Parse(uri)
+		// get the same error if the algorithm is allowed
+		u, err := rfc6920.Strict.Parse(uri)
 
-		// TODO determine what the correct semantics are for erroring
-		// vs. returning a URI are
-		assert.Error(t, err, expErr.Error())
+		if !assert.EqualError(t, err, expErr.Error()) {
+			spew.Dump(uri, u, err)
+		}
 
-		// TODO define the semantics of this
-		if u != nil {
-			assert.Equal(t, uri, u.String(), "should round trip")
+		// no truncated algorithms either
+		noTrunc, noTruncErr := rfc6920.StrictNoTruncation.Parse(uri)
+
+		lax, laxErr := rfc6920.IANA.Parse(uri)
+
+		switch err {
+		case rfc6920.ErrNotNI, rfc6920.ErrInvalidPath:
+			assert.Nil(t, u)
+			assert.Nil(t, noTrunc)
+			assert.EqualError(t, noTruncErr, err.Error())
+			assert.Nil(t, lax)
+			assert.EqualError(t, laxErr, err.Error())
+		default:
+			assert.NotNil(t, u)
+			assert.Equal(t, uri, u.String())
+			assert.Equal(t, uri, lax.String())
+
+			// Parsed URLs should be the same
+			assert.Equal(t, u, lax)
+			assert.Equal(t, u, noTrunc)
+
+			switch u.Algorithm {
+			case "sha-256", "sha-384", "sha-512":
+				assert.Equal(t, uri, noTrunc.String())
+				assert.EqualError(t, noTruncErr, err.Error())
+			default:
+				assert.EqualError(t, noTruncErr, rfc6920.ErrUnknownHashAlgorithm.Error())
+			}
+
+			if _, exists := rfc6920.IANA.Algorithms[u.Algorithm]; exists {
+				assert.EqualError(t, laxErr, err.Error(), "error for lax parsing should be the same if this is a well known algorithm")
+			} else {
+				assert.NoError(t, laxErr)
+			}
 		}
 	}
 }

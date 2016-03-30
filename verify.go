@@ -2,8 +2,7 @@ package rfc6920
 
 import (
 	"bytes"
-	"crypto/sha256"
-	"crypto/sha512"
+	"fmt"
 	"hash"
 	"io"
 )
@@ -11,7 +10,15 @@ import (
 // Returns nil iff hash matches. Returns ErrHashMismatch if the comparison failed
 // c.f. trusty urls http://arxiv.org/pdf/1401.5775.pdf
 func (d Digest) Verify(blob io.Reader) error {
-	hash, err := d.newHash()
+	return DefaultAlgorithms.verify(d, blob)
+}
+
+func (t AlgorithmTable) Verify(n *NI, blob io.Reader) error {
+	return t.verify(n.Digest, blob)
+}
+
+func (t AlgorithmTable) verify(d Digest, blob io.Reader) error {
+	hash, err := t.newHash(d.Algorithm)
 
 	if err != nil {
 		return err
@@ -29,23 +36,45 @@ func (d Digest) Verify(blob io.Reader) error {
 	return ErrHashMismatch
 }
 
-func (d Digest) newHash() (hash.Hash, error) {
-
-	switch d.AlgorithmID {
-	case
-		AlgSha256,
-		AlgSha256Trunc128,
-		AlgSha256Trunc120,
-		AlgSha256Trunc96,
-		AlgSha256Trunc64,
-		AlgSha256Trunc32:
-		return sha256.New(), nil
-	case AlgSha384:
-		return sha512.New384(), nil
-	case AlgSha512:
-		return sha512.New(), nil
-	default:
-		return nil, ErrUnknownHashAlgorithm
+func TruncateHash(constructor func() hash.Hash, size int) func() hash.Hash {
+	if constructor().Size() <= size {
+		panic(fmt.Sprintf("Truncation %d wider than hash size %d", size, constructor().Size()))
 	}
 
+	return func() hash.Hash {
+		return TruncatedHash{constructor(), size}
+	}
+}
+
+type TruncatedHash struct {
+	hash.Hash
+	Length int
+}
+
+func (t TruncatedHash) Size() int {
+	return t.Length
+}
+
+func (t TruncatedHash) Sum(b []byte) []byte {
+	sum := t.Hash.Sum(b)
+
+	if len(sum) == t.Length {
+		// this is silly
+		return sum
+	} else if len(sum) > t.Length {
+		return sum[0:t.Length]
+	} else {
+		// Is this better than a panic?
+		ret := make([]byte, t.Length)
+		copy(ret, sum)
+		return ret
+	}
+}
+
+func (t AlgorithmTable) newHash(algName string) (hash.Hash, error) {
+	if f := t.Algorithms[algName].New; f != nil {
+		return f(), nil
+	} else {
+		return nil, ErrUnknownHashAlgorithm
+	}
 }
