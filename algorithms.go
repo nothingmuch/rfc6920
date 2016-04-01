@@ -1,10 +1,6 @@
 package rfc6920
 
-import (
-	"crypto/sha256"
-	"crypto/sha512"
-	"hash"
-)
+import "crypto"
 
 // From IANA registered NI algorithms, 2016-03-29
 // https://www.iana.org/assignments/named-information/named-information.xhtml
@@ -30,15 +26,15 @@ var IANA = AlgorithmTable{
 	Strict: false,
 	Algorithms: AlgorithmParamMap{
 		// RFC says MUST have sha-256, MAY truncate
-		"sha-256":     {AlgSha256, 256 / 8, sha256.New},
-		"sha-256-128": {AlgSha256Trunc128, 128 / 8, TruncateHash(sha256.New, 128/8)},
-		"sha-256-120": {AlgSha256Trunc120, 120 / 8, TruncateHash(sha256.New, 120/8)},
-		"sha-256-96":  {AlgSha256Trunc96, 96 / 8, TruncateHash(sha256.New, 96/8)},
-		"sha-256-64":  {AlgSha256Trunc64, 64 / 8, TruncateHash(sha256.New, 64/8)},
-		"sha-256-32":  {AlgSha256Trunc32, 32 / 8, TruncateHash(sha256.New, 32/8)},
+		"sha-256":     {AlgSha256, 256 / 8, crypto.SHA256, 0},
+		"sha-256-128": {AlgSha256Trunc128, 128 / 8, crypto.SHA256, 128 / 8},
+		"sha-256-120": {AlgSha256Trunc120, 120 / 8, crypto.SHA256, 120 / 8},
+		"sha-256-96":  {AlgSha256Trunc96, 96 / 8, crypto.SHA256, 96 / 8},
+		"sha-256-64":  {AlgSha256Trunc64, 64 / 8, crypto.SHA256, 64 / 8},
+		"sha-256-32":  {AlgSha256Trunc32, 32 / 8, crypto.SHA256, 32 / 8},
 
-		"sha-384": {AlgSha384, 384 / 8, sha512.New384},
-		"sha-512": {AlgSha512, 512 / 8, sha512.New},
+		"sha-384": {AlgSha384, 384 / 8, crypto.SHA384, 0},
+		"sha-512": {AlgSha512, 512 / 8, crypto.SHA512, 0},
 	},
 }
 
@@ -52,9 +48,9 @@ var StrictNoTruncation = AlgorithmTable{
 	Strict: true, // refuse additional algorithms
 	Algorithms: AlgorithmParamMap{
 		// don't allow truncated algorithms
-		"sha-256": {AlgSha256, 256 / 8, sha256.New},
-		"sha-384": {AlgSha384, 384 / 8, sha512.New384},
-		"sha-512": {AlgSha512, 512 / 8, sha512.New},
+		"sha-256": {AlgSha256, 256 / 8, crypto.SHA256, 0},
+		"sha-384": {AlgSha384, 384 / 8, crypto.SHA384, 0},
+		"sha-512": {AlgSha512, 512 / 8, crypto.SHA512, 0},
 	},
 }
 
@@ -68,7 +64,8 @@ type AlgorithmParamMap map[string]AlgorithmParams
 
 // These may be zero for unset
 type AlgorithmParams struct {
-	ID     int              // an identifier for the binary encoding (rfc6920 s6)
-	Length int              // in bytes, for validating length
-	New    func() hash.Hash // a function to call to make a new hasher
+	ID       int // an identifier for the binary encoding (rfc6920 s6)
+	Length   int // in bytes, for validating length
+	Hash     crypto.Hash
+	Truncate int // if != 0, truncate to this length in bytes
 }

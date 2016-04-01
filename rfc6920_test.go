@@ -1,7 +1,7 @@
 package rfc6920_test
 
 import (
-	"crypto/sha1"
+	"crypto"
 	"strings"
 	"testing"
 
@@ -47,7 +47,7 @@ More examples from the RFC
 func TestExamples(t *testing.T) {
 	sha1table := rfc6920.AlgorithmTable{
 		Algorithms: rfc6920.AlgorithmParamMap{
-			"sha1": rfc6920.AlgorithmParams{New: sha1.New},
+			"sha1": rfc6920.AlgorithmParams{Hash: crypto.SHA1},
 		},
 	}
 

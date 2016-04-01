@@ -2,6 +2,7 @@ package rfc6920
 
 import (
 	"bytes"
+	"crypto"
 	"fmt"
 	"hash"
 	"io"
@@ -36,14 +37,12 @@ func (t AlgorithmTable) verify(d Digest, blob io.Reader) error {
 	return ErrHashMismatch
 }
 
-func TruncateHash(constructor func() hash.Hash, size int) func() hash.Hash {
-	if constructor().Size() <= size {
-		panic(fmt.Sprintf("Truncation %d wider than hash size %d", size, constructor().Size()))
+func TruncateHash(hash crypto.Hash, size int) hash.Hash {
+	if hash.Size() <= size {
+		panic(fmt.Sprintf("Truncation %d wider than hash size %d", size, hash.Size()))
 	}
 
-	return func() hash.Hash {
-		return TruncatedHash{constructor(), size}
-	}
+	return TruncatedHash{hash.New(), size}
 }
 
 type TruncatedHash struct {
@@ -72,8 +71,12 @@ func (t TruncatedHash) Sum(b []byte) []byte {
 }
 
 func (t AlgorithmTable) newHash(algName string) (hash.Hash, error) {
-	if f := t.Algorithms[algName].New; f != nil {
-		return f(), nil
+	if alg, ok := t.Algorithms[algName]; ok {
+		if alg.Truncate != 0 {
+			return TruncateHash(alg.Hash, alg.Truncate), nil
+		} else {
+			return alg.Hash.New(), nil
+		}
 	} else {
 		return nil, ErrUnknownHashAlgorithm
 	}
