@@ -8,7 +8,7 @@ import (
 	"github.com/davecgh/go-spew/spew"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/nothingmuch/rfc6920"
+	. "github.com/nothingmuch/rfc6920"
 )
 
 /* TODO
@@ -45,9 +45,9 @@ More examples from the RFC
 */
 
 func TestExamples(t *testing.T) {
-	sha1table := rfc6920.AlgorithmTable{
-		Algorithms: rfc6920.AlgorithmParamMap{
-			"sha1": rfc6920.AlgorithmParams{Hash: crypto.SHA1},
+	sha1table := AlgorithmTable{
+		Algorithms: AlgorithmParamMap{
+			"sha1": AlgorithmParams{Hash: crypto.SHA1},
 		},
 	}
 
@@ -74,7 +74,7 @@ func TestExamples(t *testing.T) {
 
 		// TODO relative URIs
 	} {
-		u, err := rfc6920.Parse(uri)
+		u, err := Parse(uri)
 
 		assert.NoError(t, err)
 		assert.NotNil(t, u)
@@ -85,19 +85,19 @@ func TestExamples(t *testing.T) {
 			f.length = 32
 		} else {
 			// test that the stricter modes reject this test URI
-			_, strictErr := rfc6920.StrictNoTruncation.Parse(uri)
-			assert.EqualError(t, strictErr, rfc6920.ErrUnknownHashAlgorithm.Error())
+			_, strictErr := StrictNoTruncation.Parse(uri)
+			assert.EqualError(t, strictErr, ErrUnknownHashAlgorithm.Error())
 
 			if f.algorithmid == 0 {
 				// not truncated algorithms either
-				_, noTruncErr := rfc6920.Strict.Parse(uri)
-				assert.EqualError(t, noTruncErr, rfc6920.ErrUnknownHashAlgorithm.Error())
+				_, noTruncErr := Strict.Parse(uri)
+				assert.EqualError(t, noTruncErr, ErrUnknownHashAlgorithm.Error())
 			}
 		}
 
 		assert.Equal(t, f.algorithm, u.Digest.Algorithm)
 
-		assert.Equal(t, f.algorithmid, rfc6920.IANA.Algorithms[u.Digest.Algorithm].ID)
+		assert.Equal(t, f.algorithmid, IANA.Algorithms[u.Digest.Algorithm].ID)
 
 		assert.Len(t, u.Digest.Value, f.length)
 
@@ -109,7 +109,7 @@ func TestExamples(t *testing.T) {
 			reader := strings.NewReader(f.text)
 			if f.algorithm == "sha1" {
 				assert.NoError(t, sha1table.Verify(u, reader))
-				assert.EqualError(t, u.Verify(reader), rfc6920.ErrUnknownHashAlgorithm.Error())
+				assert.EqualError(t, u.Verify(reader), ErrUnknownHashAlgorithm.Error())
 			} else {
 				assert.NoError(t, u.Verify(reader))
 			}
@@ -121,37 +121,37 @@ func TestExamples(t *testing.T) {
 
 func TestBadExamples(t *testing.T) {
 	for uri, expErr := range map[string]error{
-		"mailto:not@ahash": rfc6920.ErrNotNI,
-		"ni://":            rfc6920.ErrInvalidPath,
-		"ni:///":           rfc6920.ErrInvalidPath,
-		"ni:///sha-256":    rfc6920.ErrInvalidPath,
-		"ni:///sha-256;f4OxZX_x_FO5LcGBSKHWXfwtSx-j1ncoSt3SABJtkGk==": rfc6920.ErrInvalidLength,
+		"mailto:not@ahash": ErrNotNI,
+		"ni://":            ErrInvalidPath,
+		"ni:///":           ErrInvalidPath,
+		"ni:///sha-256":    ErrInvalidPath,
+		"ni:///sha-256;f4OxZX_x_FO5LcGBSKHWXfwtSx-j1ncoSt3SABJtkGk==": ErrInvalidLength,
 
-		"ni:///sha-256-128;f4OxZX_x_FO5LcGBSKHWXfwtSx-j1ncoSt3SABJtkGk": rfc6920.ErrInvalidLength,
-		"ni:///sha-256-128;f4OxZX_x_FO5LcGBSWX":                         rfc6920.ErrInvalidLength,
-		"ni:///sha-256;":                                                rfc6920.ErrInvalidPath,
-		"ni:///sha-256;f":                                               rfc6920.ErrInvalidLength,
-		"ni:///sha-256;f4OxZX_x_FO5LcGBSKHWXfwtSx-j1ncoSt3SABJtkGkfoo":  rfc6920.ErrInvalidLength,
-		"ni:///sha-256;f4OxZX_x_FO5LGBSKHWXfwtSx-j1ncoSt3SABJtkGk":      rfc6920.ErrInvalidLength,
-		"ni:///;":                                                                  rfc6920.ErrInvalidPath,
-		"ni:///sha-253;":                                                           rfc6920.ErrInvalidPath,
-		"ni:///sha-253;f4OxZX_x_FO5LcGBSKHWXfwtSx-j1ncoSt3SABJtkGk":                rfc6920.ErrUnknownHashAlgorithm,
-		"ni://example.com/foo/sha-256;f4OxZX_x_FO5LcGBSKHWXfwtSx-j1ncoSt3SABJtkGk": rfc6920.ErrUnknownHashAlgorithm,
+		"ni:///sha-256-128;f4OxZX_x_FO5LcGBSKHWXfwtSx-j1ncoSt3SABJtkGk": ErrInvalidLength,
+		"ni:///sha-256-128;f4OxZX_x_FO5LcGBSWX":                         ErrInvalidLength,
+		"ni:///sha-256;":                                                ErrInvalidPath,
+		"ni:///sha-256;f":                                               ErrInvalidLength,
+		"ni:///sha-256;f4OxZX_x_FO5LcGBSKHWXfwtSx-j1ncoSt3SABJtkGkfoo":  ErrInvalidLength,
+		"ni:///sha-256;f4OxZX_x_FO5LGBSKHWXfwtSx-j1ncoSt3SABJtkGk":      ErrInvalidLength,
+		"ni:///;":                                                                  ErrInvalidPath,
+		"ni:///sha-253;":                                                           ErrInvalidPath,
+		"ni:///sha-253;f4OxZX_x_FO5LcGBSKHWXfwtSx-j1ncoSt3SABJtkGk":                ErrUnknownHashAlgorithm,
+		"ni://example.com/foo/sha-256;f4OxZX_x_FO5LcGBSKHWXfwtSx-j1ncoSt3SABJtkGk": ErrUnknownHashAlgorithm,
 	} {
 		// get the same error if the algorithm is allowed
-		u, err := rfc6920.Strict.Parse(uri)
+		u, err := Strict.Parse(uri)
 
 		if !assert.EqualError(t, err, expErr.Error()) {
 			spew.Dump(uri, u, err)
 		}
 
 		// no truncated algorithms either
-		noTrunc, noTruncErr := rfc6920.StrictNoTruncation.Parse(uri)
+		noTrunc, noTruncErr := StrictNoTruncation.Parse(uri)
 
-		lax, laxErr := rfc6920.IANA.Parse(uri)
+		lax, laxErr := IANA.Parse(uri)
 
 		switch err {
-		case rfc6920.ErrNotNI, rfc6920.ErrInvalidPath:
+		case ErrNotNI, ErrInvalidPath:
 			assert.Nil(t, u)
 			assert.Nil(t, noTrunc)
 			assert.EqualError(t, noTruncErr, err.Error())
@@ -171,10 +171,10 @@ func TestBadExamples(t *testing.T) {
 				assert.Equal(t, uri, noTrunc.String())
 				assert.EqualError(t, noTruncErr, err.Error())
 			default:
-				assert.EqualError(t, noTruncErr, rfc6920.ErrUnknownHashAlgorithm.Error())
+				assert.EqualError(t, noTruncErr, ErrUnknownHashAlgorithm.Error())
 			}
 
-			if _, exists := rfc6920.IANA.Algorithms[u.Algorithm]; exists {
+			if _, exists := IANA.Algorithms[u.Algorithm]; exists {
 				assert.EqualError(t, laxErr, err.Error(), "error for lax parsing should be the same if this is a well known algorithm")
 			} else {
 				assert.NoError(t, laxErr)
@@ -187,7 +187,7 @@ func TestString(t *testing.T) {
 	hash := crypto.SHA256.New()
 	hash.Write([]byte("Hello World!"))
 
-	ni := rfc6920.NI{Digest: rfc6920.Digest{Algorithm: "sha-256", Value: hash.Sum(nil)}}
+	ni := NI{Digest: Digest{Algorithm: "sha-256", Value: hash.Sum(nil)}}
 
 	assert.Equal(t, "ni:///sha-256;f4OxZX_x_FO5LcGBSKHWXfwtSx-j1ncoSt3SABJtkGk", ni.String())
 }
