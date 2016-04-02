@@ -19,7 +19,7 @@ func (t AlgorithmTable) Verify(n *NI, blob io.Reader) error {
 }
 
 func (t AlgorithmTable) verify(d Digest, blob io.Reader) error {
-	hash, err := t.newHash(d.Algorithm)
+	hash, err := t.TruncatedHash(d.Algorithm)
 
 	if err != nil {
 		return err
@@ -71,17 +71,5 @@ func (t TruncatedHash) Sum(b []byte) []byte {
 		ret := make([]byte, t.Length)
 		copy(ret, sum)
 		return ret
-	}
-}
-
-func (t AlgorithmTable) newHash(algName string) (hash.Hash, error) {
-	if alg, ok := t.Algorithms[algName]; ok {
-		if alg.Truncate != 0 {
-			return TruncateHash(alg.Hash, alg.Truncate), nil
-		} else {
-			return alg.Hash.New(), nil
-		}
-	} else {
-		return nil, ErrUnknownHashAlgorithm
 	}
 }

@@ -1,6 +1,9 @@
 package rfc6920
 
-import "crypto"
+import (
+	"crypto"
+	"hash"
+)
 
 // From IANA registered NI algorithms, 2016-03-29
 // https://www.iana.org/assignments/named-information/named-information.xhtml
@@ -68,4 +71,32 @@ type AlgorithmParams struct {
 	Length   int // in bytes, for validating length
 	Hash     crypto.Hash
 	Truncate int // if != 0, truncate to this length in bytes
+}
+
+func (t AlgorithmTable) AlgorithmParams(algName string) (AlgorithmParams, error) {
+	if alg, ok := t.Algorithms[algName]; ok && alg.Hash != 0 {
+		return alg, nil
+	} else {
+		return AlgorithmParams{}, ErrUnknownHashAlgorithm
+	}
+
+}
+
+func (t AlgorithmTable) Hash(algName string) (crypto.Hash, error) {
+	p, err := t.AlgorithmParams(algName)
+	return p.Hash, err
+}
+
+func (t AlgorithmTable) TruncatedHash(algName string) (hash.Hash, error) {
+	p, err := t.AlgorithmParams(algName)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if p.Truncate != 0 {
+		return TruncateHash(p.Hash, p.Truncate), nil
+	} else {
+		return p.Hash.New(), nil
+	}
 }
