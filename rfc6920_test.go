@@ -191,3 +191,10 @@ func TestString(t *testing.T) {
 
 	assert.Equal(t, "ni:///sha-256;f4OxZX_x_FO5LcGBSKHWXfwtSx-j1ncoSt3SABJtkGk", ni.String())
 }
+
+func TestHashHelper(t *testing.T) {
+	hash, err := DefaultAlgorithms.Hash("sha-256")
+	assert.NoError(t, err)
+	assert.Equal(t, crypto.SHA256, hash)
+
+}
