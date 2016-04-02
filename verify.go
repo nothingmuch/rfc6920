@@ -38,6 +38,10 @@ func (t AlgorithmTable) verify(d Digest, blob io.Reader) error {
 }
 
 func TruncateHash(hash crypto.Hash, size int) hash.Hash {
+	if size <= 0 {
+		panic(fmt.Sprintf("Invalid truncation size: %d", size))
+	}
+
 	if hash.Size() <= size {
 		panic(fmt.Sprintf("Truncation %d wider than hash size %d", size, hash.Size()))
 	}
