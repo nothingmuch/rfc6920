@@ -210,3 +210,10 @@ func TestVerifyPanics(t *testing.T) {
 	assert.Panics(t, func() { TruncateHash(crypto.SHA256, -3) })
 	assert.Panics(t, func() { TruncateHash(crypto.SHA256, 385) })
 }
+
+func TestTruncatePad(t *testing.T) {
+	h := TruncatedHash{crypto.SHA256.New(), 999}
+	sum := h.Sum(nil)
+	assert.Equal(t, 999, h.Size())
+	assert.Len(t, sum, 999, `"truncating" to a wider than native hash should pad with 0s because a panic would suck`)
+}
