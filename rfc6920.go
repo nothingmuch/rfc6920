@@ -83,48 +83,65 @@ func ParseAlgVal(segment string) (digest *Digest, err error) {
 	return DefaultAlgorithms.ParseAlgVal(segment)
 }
 
-func (t AlgorithmTable) ParseAlgVal(segment string) (digest *Digest, err error) {
+func (t AlgorithmTable) ParseAlgVal(segment string) (*Digest, error) {
+	algName, encoded, err := splitPathSegment(segment)
+
+	if err != nil {
+		return nil, err
+	}
+
+	// TODO check length before decoding?
+	decoded, decodeErr := base64.RawURLEncoding.DecodeString(encoded)
+
+	digest := Digest{
+		Algorithm: algName,
+		Value:     decoded,
+	}
+
+	validationErr := t.CheckLength(digest)
+
+	if validationErr != nil {
+		err = validationErr
+	} else if decodeErr != nil {
+		err = decodeErr
+	}
+
+	return &digest, err
+}
+
+func splitPathSegment(segment string) (string, string, error) {
 	if len(segment) == 0 || segment[0] != '/' {
-		err = ErrInvalidPath
-		return
+		return "", "", ErrInvalidPath
 	}
 
 	parts := strings.Split(segment[1:], ";") // Split or SplitN? rfc says "must"
 
 	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
-		err = ErrInvalidPath
-		return
+		return "", "", ErrInvalidPath
+	} else {
+		return parts[0], parts[1], nil
 	}
+}
 
-	algName := parts[0]
-	encoded := parts[1]
-
-	digest = &Digest{}
-
-	// TODO check length before decoding?
-	digest.Value, err = base64.RawURLEncoding.DecodeString(encoded)
-
-	digest.Algorithm = algName
-
-	algParams, known := t.Algorithms[algName]
+func (t AlgorithmTable) CheckLength(digest Digest) error {
+	algParams, known := t.Algorithms[digest.Algorithm]
 
 	if known {
 		// We only check lengths of known algorithms
 		// If we know the expected length, verify it.
 		if algParams.Length != 0 {
 			if len(digest.Value) != algParams.Length {
-				err = ErrInvalidLength
+				return ErrInvalidLength
 			}
 		}
 
 		// no hash is always an error
 		if len(digest.Value) == 0 {
-			err = ErrInvalidLength
+			return ErrInvalidLength
 		}
 	} else if t.Strict {
-		// Note, overwrites decoding errors (if any), but I think this is more informative
-		err = ErrUnknownHashAlgorithm
+		return ErrUnknownHashAlgorithm
 	}
 
-	return
+	return nil
 }
