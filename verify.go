@@ -25,7 +25,11 @@ func (t AlgorithmTable) verify(d Digest, blob io.Reader) error {
 		return err
 	}
 
-	io.Copy(hash, blob)
+	_, err = io.Copy(hash, blob)
+
+	if err != nil {
+		return err
+	}
 
 	sum := hash.Sum(nil)
 
