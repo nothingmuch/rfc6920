@@ -182,3 +182,12 @@ func TestBadExamples(t *testing.T) {
 		}
 	}
 }
+
+func TestString(t *testing.T) {
+	hash := crypto.SHA256.New()
+	hash.Write([]byte("Hello World!"))
+
+	ni := rfc6920.NI{Digest: rfc6920.Digest{Algorithm: "sha-256", Value: hash.Sum(nil)}}
+
+	assert.Equal(t, "ni:///sha-256;f4OxZX_x_FO5LcGBSKHWXfwtSx-j1ncoSt3SABJtkGk", ni.String())
+}

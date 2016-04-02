@@ -21,6 +21,22 @@ type NI struct {
 	Digest
 }
 
+func (ni NI) String() string {
+	uri := ni.URL
+
+	if uri == nil {
+		uri = &url.URL{
+			Scheme: "ni",
+			Path: fmt.Sprintf("/%s;%s",
+				ni.Digest.Algorithm,
+				base64.RawURLEncoding.EncodeToString(ni.Digest.Value),
+			),
+		}
+	}
+
+	return uri.String()
+}
+
 type Digest struct {
 	Algorithm string
 	Value     []byte
