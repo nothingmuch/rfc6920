@@ -113,7 +113,14 @@ func TestExamples(t *testing.T) {
 			} else {
 				assert.NoError(t, u.Verify(reader))
 			}
+		}
 
+		reader := strings.NewReader("something else")
+		if f.algorithm == "sha1" {
+			assert.EqualError(t, sha1table.Verify(u, reader), ErrHashMismatch.Error())
+			assert.EqualError(t, u.Verify(reader), ErrUnknownHashAlgorithm.Error())
+		} else {
+			assert.EqualError(t, u.Verify(reader), ErrHashMismatch.Error())
 		}
 	}
 
@@ -197,4 +204,9 @@ func TestHashHelper(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, crypto.SHA256, hash)
 
+}
+
+func TestVerifyPanics(t *testing.T) {
+	assert.Panics(t, func() { TruncateHash(crypto.SHA256, -3) })
+	assert.Panics(t, func() { TruncateHash(crypto.SHA256, 385) })
 }
